@@ -54,7 +54,7 @@ SignalConfig? data = JsonSerializer.Deserialize<SignalConfig>(jsonData);
 
 
 Console.WriteLine("Key: " + data?.Key);
-using SQLiteConnection connection = OpenSignalDatabase(dbLocationPath, data.Key);
+using SQLiteConnection connection = OpenSignalDatabase(dbLocationPath, data?.Key ?? string.Empty);
 
 SQLiteCommand sqLiteCommand = connection.CreateCommand("select id, json from messages where hasAttachments=1");
 List<Message> executeQuery = sqLiteCommand.ExecuteQuery<Message>();
@@ -62,8 +62,13 @@ List<Message> executeQuery = sqLiteCommand.ExecuteQuery<Message>();
 char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new char[] { '?' }).ToArray();
 foreach (Message message in executeQuery)
 {
+    if (message?.json == null)
+    {
+        continue;
+    }
+    
     RootObject? rootObject = JsonSerializer.Deserialize<RootObject>(message.json);
-    if (rootObject?.attachments.Length > 0)
+    if (rootObject?.attachments?.Length > 0)
     {
         foreach (Attachments attachment in rootObject.attachments)
         {
@@ -125,60 +130,60 @@ static SQLiteConnection OpenSignalDatabase(string databasePath, string passphras
 public class RootObject
 {
     public long timestamp { get; set; }
-    public Attachments[] attachments { get; set; }
-    public string source { get; set; }
+    public Attachments[]? attachments { get; set; }
+    public string? source { get; set; }
     public int sourceDevice { get; set; }
     public long sent_at { get; set; }
     public long received_at { get; set; }
-    public string conversationId { get; set; }
+    public string? conversationId { get; set; }
     public bool unidentifiedDeliveryReceived { get; set; }
-    public string type { get; set; }
+    public string? type { get; set; }
     public int schemaVersion { get; set; }
-    public string id { get; set; }
-    public string body { get; set; }
-    public object[] contact { get; set; }
+    public string? id { get; set; }
+    public string? body { get; set; }
+    public object[]? contact { get; set; }
     public long decrypted_at { get; set; }
-    public object[] errors { get; set; }
+    public object[]? errors { get; set; }
     public int flags { get; set; }
     public int hasAttachments { get; set; }
     public int hasVisualMediaAttachments { get; set; }
     public bool isViewOnce { get; set; }
-    public object[] preview { get; set; }
+    public object[]? preview { get; set; }
     public int requiredProtocolVersion { get; set; }
     public int supportedVersionAtReceive { get; set; }
-    public object quote { get; set; }
-    public object sticker { get; set; }
+    public object? quote { get; set; }
+    public object? sticker { get; set; }
     public int readStatus { get; set; }
     public int seenStatus { get; set; }
 }
 
 public class Attachments
 {
-    public object caption { get; set; }
-    public string contentType { get; set; }
+    public object? caption { get; set; }
+    public string? contentType { get; set; }
     public string? fileName { get; set; }
-    public object flags { get; set; }
+    public object? flags { get; set; }
     public int? height { get; set; }
-    public string id { get; set; }
+    public string? id { get; set; }
     public int size { get; set; }
     public int? width { get; set; }
-    public string path { get; set; }
-    public Thumbnail thumbnail { get; set; }
+    public string? path { get; set; }
+    public Thumbnail? thumbnail { get; set; }
 }
 
 public class Thumbnail
 {
-    public string path { get; set; }
-    public string contentType { get; set; }
-    public int width { get; set; }
-    public int height { get; set; }
+    public string? path { get; set; }
+    public string? contentType { get; set; }
+    public int? width { get; set; }
+    public int? height { get; set; }
 }
 
 
 class Message
 {
-    string id { get; set; }
-    public string json { get; set; }
+    string? id { get; set; }
+    public string? json { get; set; }
 }
 
 public class SignalConfig
