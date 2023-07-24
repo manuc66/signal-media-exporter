@@ -1,3 +1,5 @@
+namespace manuc66.SignalMediaExporter.CLI.Models;
+
 public class Attachment
 {
     public object? caption { get; set; }

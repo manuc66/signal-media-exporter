@@ -1,3 +1,5 @@
+namespace manuc66.SignalMediaExporter.CLI.Models;
+
 public class MessageContent
 {
     public long timestamp { get; set; }

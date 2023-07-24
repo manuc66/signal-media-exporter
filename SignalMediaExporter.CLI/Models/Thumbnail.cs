@@ -1,3 +1,5 @@
+namespace manuc66.SignalMediaExporter.CLI.Models;
+
 public class Thumbnail
 {
     public string? path { get; set; }
