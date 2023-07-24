@@ -5,82 +5,90 @@ using System.Text.Json;
 using HeyRed.Mime;
 using SQLite;
 
-string dbLocationPath;
+string dbLocationPath = GetDbLocationPath();
 
-if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-{
-    dbLocationPath = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\AppData\\Roaming\\Signal\\sql\\db.sqlite";
-}
-else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-{
-    dbLocationPath = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.config/Signal/sql/db.sqlite";
-}
-else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-{
-    dbLocationPath = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/Library/Application Support/Signal/sql/db.sqlite";
-}
-else
-{
-    throw new NotSupportedException("Unsupported operating system");
-}
+string signalDirectory = Path.GetDirectoryName(Path.GetDirectoryName(dbLocationPath)) ?? throw new Exception("Impossible to traverse file directory to find the location of the Signal config file");
 
-dbLocationPath = Path.GetFullPath(dbLocationPath);
-
-if (!File.Exists(dbLocationPath))
-{
-    throw new NotSupportedException("Signal db not found at: " + dbLocationPath);
-}
-
-string signalDirectory = Path.GetDirectoryName(Path.GetDirectoryName(dbLocationPath)) ??
-                         throw new Exception("Impossible to traverse file directory to find the location of the Signal config file");
-string signalConfigFilePath = Path.Combine(signalDirectory, "config.json");
-
-if (!File.Exists(signalConfigFilePath))
-{
-    throw new NotSupportedException($"Signal configuration file not found: {signalConfigFilePath}");
-}
+string signalConfigFilePath = GetSignalConfigFilePath(signalDirectory);
 
 Console.WriteLine("Database location: " + dbLocationPath);
 Console.WriteLine("Configuration location: " + signalDirectory);
 
 const string exportLocation = ;
 
-
 string jsonData = File.ReadAllText(signalConfigFilePath);
 
-// Deserialize the JSON data into the MyData class
 SignalConfig? data = JsonSerializer.Deserialize<SignalConfig>(jsonData);
 
-
 Console.WriteLine("Key: " + data?.Key);
+
 using SQLiteConnection connection = OpenSignalDatabase(dbLocationPath, data?.Key ?? string.Empty);
 
-SQLiteCommand sqLiteCommand = connection.CreateCommand("select id, json from messages where hasAttachments=1");
-List<Message> executeQuery = sqLiteCommand.ExecuteQuery<Message>();
+List<Message> messageWithAttachments = GetMessageWithAttachments(connection);
 
-
-foreach (Message message in executeQuery)
+foreach (Message message in messageWithAttachments)
 {
     SaveMessage(message, signalDirectory, exportLocation);
 }
 
-Console.WriteLine("Total messages with attachment: " + executeQuery.Count);
+Console.WriteLine("Total messages with attachment: " + messageWithAttachments.Count);
 
+
+
+static string GetSignalConfigFilePath(string signalDirectory)
+{
+    string signalConfigFilePath = Path.Combine(signalDirectory, "config.json");
+
+    if (!File.Exists(signalConfigFilePath))
+    {
+        throw new NotSupportedException($"Signal configuration file not found: {signalConfigFilePath}");
+    }
+
+    return signalConfigFilePath;
+}
+
+static string GetDbLocationPath()
+{
+    string dbLocationPath;
+
+    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+    {
+        dbLocationPath = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\\AppData\\Roaming\\Signal\\sql\\db.sqlite";
+    }
+    else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+    {
+        dbLocationPath = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.config/Signal/sql/db.sqlite";
+    }
+    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+    {
+        dbLocationPath = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/Library/Application Support/Signal/sql/db.sqlite";
+    }
+    else
+    {
+        throw new NotSupportedException("Unsupported operating system");
+    }
+
+    dbLocationPath = Path.GetFullPath(dbLocationPath);
+
+    if (!File.Exists(dbLocationPath))
+    {
+        throw new NotSupportedException("Signal db not found at: " + dbLocationPath);
+    }
+
+    return dbLocationPath;
+}
 
 static SQLiteConnection OpenSignalDatabase(string databasePath, string passphrase)
 {
     SQLitePCL.Batteries_V2.Init();
-
-
     byte[] key = Convert.FromHexString(passphrase);
-
-
-    // Create a new SQLiteConnection with the key
-    SQLiteConnectionString sqLiteConnectionString = new SQLiteConnectionString(databasePath, SQLiteOpenFlags.ReadOnly, false, key: key);
-    SQLiteConnection connection = new SQLiteConnection(sqLiteConnectionString);
+    
+    SQLiteConnectionString sqLiteConnectionString = new(databasePath, SQLiteOpenFlags.ReadOnly, false, key: key);
+    SQLiteConnection connection = new(sqLiteConnectionString);
 
     return connection;
 }
+
 static string? GetFileName(Attachment attachment)
 {
     char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new[] { '?' }).ToArray();
@@ -109,46 +117,64 @@ static string? GetFileName(Attachment attachment)
     return fileName;
 }
 
-static void Save(Attachment attachments, string signalDirectory, string exportLocation1, long receivedAt)
+static bool Save(Attachment attachments, string signalDirectory, string exportLocation1, long receivedAt)
 {
     string? fileName = GetFileName(attachments);
-    if (!string.IsNullOrEmpty(attachments.path) && fileName != null)
+    if (string.IsNullOrEmpty(attachments.path) || fileName == null)
     {
-        string currentFileLocation = Path.Combine(signalDirectory, "attachment.noindex", attachments.path);
-
-        string destFilepath = Path.Combine(exportLocation1, fileName);
-        if (Path.Exists(destFilepath))
-        {
-            destFilepath = Path.Combine(exportLocation1, Guid.NewGuid() + fileName);
-        }
-
-        DateTime when = new DateTime(1970, 1, 1).AddMilliseconds(receivedAt).ToLocalTime();
-
-
-        Console.WriteLine($"{fileName}: {currentFileLocation} @{when:yyyy-MM-dd} -> {destFilepath}");
-        File.Copy(currentFileLocation, destFilepath);
-        FileInfo fileInfo = new FileInfo(destFilepath)
-        {
-            LastWriteTime = when,
-            CreationTime = when
-        };
+        return false;
     }
+
+    string currentFileLocation = Path.Combine(signalDirectory, "attachment.noindex", attachments.path);
+
+    string destFilepath = Path.Combine(exportLocation1, fileName);
+    if (Path.Exists(destFilepath))
+    {
+        destFilepath = Path.Combine(exportLocation1, Guid.NewGuid() + fileName);
+    }
+
+    DateTime when = new DateTime(1970, 1, 1).AddMilliseconds(receivedAt).ToLocalTime();
+
+
+    Console.WriteLine($"{fileName}: {currentFileLocation} @{when:yyyy-MM-dd} -> {destFilepath}");
+    File.Copy(currentFileLocation, destFilepath);
+    FileInfo fileInfo = new(destFilepath)
+    {
+        LastWriteTime = when,
+        CreationTime = when
+    };
+    fileInfo.LastWriteTime = when;
+    return true;
 }
 
-static void SaveMessage(Message message1, string signalDirectory, string exportLocation)
+static bool SaveMessage(Message message, string signalDirectory, string exportLocation)
 {
-    if (message1?.json == null)
+    if (message.json == null)
     {
-        return;
+        return false;
     }
 
-    MessageContent? rootObject = JsonSerializer.Deserialize<MessageContent>(message1.json);
-    if (rootObject?.attachments?.Length > 0)
+    MessageContent? rootObject = JsonSerializer.Deserialize<MessageContent>(message.json);
+    if (!(rootObject?.attachments?.Length > 0))
     {
-        long receivedAt = rootObject.received_at;
-        foreach (Attachment attachment in rootObject.attachments)
-        {
-            Save(attachment, signalDirectory, exportLocation, receivedAt);
-        }
+        return false;
     }
+
+    long receivedAt = rootObject.received_at;
+
+    bool saved = false;
+    foreach (Attachment attachment in rootObject.attachments)
+    {
+        saved |= Save(attachment, signalDirectory, exportLocation, receivedAt);
+    }
+
+    return saved;
+
+}
+
+static List<Message> GetMessageWithAttachments(SQLiteConnection sqLiteConnection)
+{
+    SQLiteCommand sqLiteCommand = sqLiteConnection.CreateCommand("select id, json from messages where hasAttachments=1");
+    List<Message> messages = sqLiteCommand.ExecuteQuery<Message>();
+    return messages;
 }
