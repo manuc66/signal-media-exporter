@@ -3,6 +3,7 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using HeyRed.Mime;
 using SQLite;
 
 string dbLocationPath;
@@ -58,11 +59,11 @@ using SQLiteConnection connection = OpenSignalDatabase(dbLocationPath, data.Key)
 SQLiteCommand sqLiteCommand = connection.CreateCommand("select id, json from messages where hasAttachments=1");
 List<Message> executeQuery = sqLiteCommand.ExecuteQuery<Message>();
 
-char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new char[] {'?'}).ToArray();
+char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new char[] { '?' }).ToArray();
 foreach (Message message in executeQuery)
 {
     RootObject? rootObject = JsonSerializer.Deserialize<RootObject>(message.json);
-    if (rootObject?.attachments?.Length > 0)
+    if (rootObject?.attachments.Length > 0)
     {
         foreach (Attachments attachment in rootObject.attachments)
         {
@@ -72,28 +73,29 @@ foreach (Message message in executeQuery)
 
                 string fileName = !string.IsNullOrEmpty(attachment.fileName) ? attachment.fileName : Path.GetFileName(location);
 
-                if (fileName.Any( x =>
-                    {
-                        return invalidFileNameChars.Any(z => x == z);
-                    }))
+                if (fileName.Any(x => { return invalidFileNameChars.Any(z => x == z); }))
                 {
                     fileName = Path.GetFileName(location);
                 }
 
-
-                string destFileName = Path.Combine(exportLocation, fileName);
-                if (Path.Exists(destFileName))
+                if (String.IsNullOrEmpty(Path.GetExtension(fileName)))
                 {
-                    destFileName = Path.Combine(exportLocation, Guid.NewGuid() + fileName);
+                    fileName += "." + MimeTypesMap.GetExtension(attachment.contentType);
                 }
-                
-                
+
+                string destFilepath = Path.Combine(exportLocation, fileName);
+                if (Path.Exists(destFilepath))
+                {
+                    destFilepath = Path.Combine(exportLocation, Guid.NewGuid() + fileName);
+                }
+
+
                 var when = (new DateTime(1970, 1, 1)).AddMilliseconds(rootObject.received_at).ToLocalTime();
-                
-                
-                Console.WriteLine($"{fileName}: {location} @{when:yyyy-MM-dd} -> {destFileName}");
-                File.Copy(location, destFileName);
-                FileInfo fileInfo = new FileInfo(destFileName)
+
+
+                Console.WriteLine($"{fileName}: {location} @{when:yyyy-MM-dd} -> {destFilepath}");
+                File.Copy(location, destFilepath);
+                FileInfo fileInfo = new FileInfo(destFilepath)
                 {
                     LastWriteTime = when,
                     CreationTime = when

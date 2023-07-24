@@ -10,6 +10,7 @@
     
     <ItemGroup>
         <PackageReference Include="sqlite-net-sqlcipher" Version="1.9.141-beta" />
+        <PackageReference Include="MimeTypesMap" Version="1.0.8" />
     </ItemGroup>
 
 </Project>
