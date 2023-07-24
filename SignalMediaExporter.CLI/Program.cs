@@ -6,6 +6,78 @@ using System.Text.Json.Serialization;
 using HeyRed.Mime;
 using SQLite;
 
+static string? GetFileName(Attachment attachment)
+{
+    char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new[] { '?' }).ToArray();
+
+    if (attachment.path == null)
+    {
+        return null;
+    }
+
+    string fileName;
+    if (!string.IsNullOrEmpty(attachment.fileName)
+        && !attachment.fileName.Any(x => invalidFileNameChars.Any(z => x == z)))
+    {
+        fileName = attachment.fileName;
+    }
+    else
+    {
+        fileName = Path.GetFileName(attachment.path);
+    }
+
+    if (String.IsNullOrEmpty(Path.GetExtension(fileName)))
+    {
+        fileName += "." + MimeTypesMap.GetExtension(attachment.contentType);
+    }
+
+    return fileName;
+}
+
+static void Save(Attachment attachments, string signalDirectory, string exportLocation1, long receivedAt)
+{
+    string? fileName = GetFileName(attachments);
+    if (!string.IsNullOrEmpty(attachments.path) && fileName != null)
+    {
+        string currentFileLocation = Path.Combine(signalDirectory, "attachment.noindex", attachments.path);
+
+        string destFilepath = Path.Combine(exportLocation1, fileName);
+        if (Path.Exists(destFilepath))
+        {
+            destFilepath = Path.Combine(exportLocation1, Guid.NewGuid() + fileName);
+        }
+
+        DateTime when = new DateTime(1970, 1, 1).AddMilliseconds(receivedAt).ToLocalTime();
+
+
+        Console.WriteLine($"{fileName}: {currentFileLocation} @{when:yyyy-MM-dd} -> {destFilepath}");
+        File.Copy(currentFileLocation, destFilepath);
+        FileInfo fileInfo = new FileInfo(destFilepath)
+        {
+            LastWriteTime = when,
+            CreationTime = when
+        };
+    }
+}
+
+static void SaveMessage(Message message1, string signalDirectory, string exportLocation)
+{
+    if (message1?.json == null)
+    {
+        return;
+    }
+
+    RootObject? rootObject = JsonSerializer.Deserialize<RootObject>(message1.json);
+    if (rootObject?.attachments?.Length > 0)
+    {
+        long receivedAt = rootObject.received_at;
+        foreach (Attachment attachment in rootObject.attachments)
+        {
+            Save(attachment, signalDirectory, exportLocation, receivedAt);
+        }
+    }
+}
+
 string dbLocationPath;
 
 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -59,58 +131,14 @@ using SQLiteConnection connection = OpenSignalDatabase(dbLocationPath, data?.Key
 SQLiteCommand sqLiteCommand = connection.CreateCommand("select id, json from messages where hasAttachments=1");
 List<Message> executeQuery = sqLiteCommand.ExecuteQuery<Message>();
 
-char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new char[] { '?' }).ToArray();
+
 foreach (Message message in executeQuery)
 {
-    if (message?.json == null)
-    {
-        continue;
-    }
-    
-    RootObject? rootObject = JsonSerializer.Deserialize<RootObject>(message.json);
-    if (rootObject?.attachments?.Length > 0)
-    {
-        foreach (Attachments attachment in rootObject.attachments)
-        {
-            if (!string.IsNullOrEmpty(attachment.path))
-            {
-                string location = Path.Combine(signalDirectory, "attachments.noindex", attachment.path);
-
-                string fileName = !string.IsNullOrEmpty(attachment.fileName) ? attachment.fileName : Path.GetFileName(location);
-
-                if (fileName.Any(x => { return invalidFileNameChars.Any(z => x == z); }))
-                {
-                    fileName = Path.GetFileName(location);
-                }
-
-                if (String.IsNullOrEmpty(Path.GetExtension(fileName)))
-                {
-                    fileName += "." + MimeTypesMap.GetExtension(attachment.contentType);
-                }
-
-                string destFilepath = Path.Combine(exportLocation, fileName);
-                if (Path.Exists(destFilepath))
-                {
-                    destFilepath = Path.Combine(exportLocation, Guid.NewGuid() + fileName);
-                }
-
-
-                var when = (new DateTime(1970, 1, 1)).AddMilliseconds(rootObject.received_at).ToLocalTime();
-
-
-                Console.WriteLine($"{fileName}: {location} @{when:yyyy-MM-dd} -> {destFilepath}");
-                File.Copy(location, destFilepath);
-                FileInfo fileInfo = new FileInfo(destFilepath)
-                {
-                    LastWriteTime = when,
-                    CreationTime = when
-                };
-            }
-        }
-    }
+    SaveMessage(message, signalDirectory, exportLocation);
 }
 
-Console.WriteLine("Total messages with attachments: " + executeQuery.Count);
+Console.WriteLine("Total messages with attachment: " + executeQuery.Count);
+
 
 static SQLiteConnection OpenSignalDatabase(string databasePath, string passphrase)
 {
@@ -130,7 +158,7 @@ static SQLiteConnection OpenSignalDatabase(string databasePath, string passphras
 public class RootObject
 {
     public long timestamp { get; set; }
-    public Attachments[]? attachments { get; set; }
+    public Attachment[]? attachments { get; set; }
     public string? source { get; set; }
     public int sourceDevice { get; set; }
     public long sent_at { get; set; }
@@ -157,7 +185,7 @@ public class RootObject
     public int seenStatus { get; set; }
 }
 
-public class Attachments
+public class Attachment
 {
     public object? caption { get; set; }
     public string? contentType { get; set; }
