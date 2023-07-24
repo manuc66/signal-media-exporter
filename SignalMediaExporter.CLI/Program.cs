@@ -2,81 +2,8 @@
 
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using HeyRed.Mime;
 using SQLite;
-
-static string? GetFileName(Attachment attachment)
-{
-    char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new[] { '?' }).ToArray();
-
-    if (attachment.path == null)
-    {
-        return null;
-    }
-
-    string fileName;
-    if (!string.IsNullOrEmpty(attachment.fileName)
-        && !attachment.fileName.Any(x => invalidFileNameChars.Any(z => x == z)))
-    {
-        fileName = attachment.fileName;
-    }
-    else
-    {
-        fileName = Path.GetFileName(attachment.path);
-    }
-
-    if (String.IsNullOrEmpty(Path.GetExtension(fileName)))
-    {
-        fileName += "." + MimeTypesMap.GetExtension(attachment.contentType);
-    }
-
-    return fileName;
-}
-
-static void Save(Attachment attachments, string signalDirectory, string exportLocation1, long receivedAt)
-{
-    string? fileName = GetFileName(attachments);
-    if (!string.IsNullOrEmpty(attachments.path) && fileName != null)
-    {
-        string currentFileLocation = Path.Combine(signalDirectory, "attachment.noindex", attachments.path);
-
-        string destFilepath = Path.Combine(exportLocation1, fileName);
-        if (Path.Exists(destFilepath))
-        {
-            destFilepath = Path.Combine(exportLocation1, Guid.NewGuid() + fileName);
-        }
-
-        DateTime when = new DateTime(1970, 1, 1).AddMilliseconds(receivedAt).ToLocalTime();
-
-
-        Console.WriteLine($"{fileName}: {currentFileLocation} @{when:yyyy-MM-dd} -> {destFilepath}");
-        File.Copy(currentFileLocation, destFilepath);
-        FileInfo fileInfo = new FileInfo(destFilepath)
-        {
-            LastWriteTime = when,
-            CreationTime = when
-        };
-    }
-}
-
-static void SaveMessage(Message message1, string signalDirectory, string exportLocation)
-{
-    if (message1?.json == null)
-    {
-        return;
-    }
-
-    RootObject? rootObject = JsonSerializer.Deserialize<RootObject>(message1.json);
-    if (rootObject?.attachments?.Length > 0)
-    {
-        long receivedAt = rootObject.received_at;
-        foreach (Attachment attachment in rootObject.attachments)
-        {
-            Save(attachment, signalDirectory, exportLocation, receivedAt);
-        }
-    }
-}
 
 string dbLocationPath;
 
@@ -154,67 +81,74 @@ static SQLiteConnection OpenSignalDatabase(string databasePath, string passphras
 
     return connection;
 }
-
-public class RootObject
+static string? GetFileName(Attachment attachment)
 {
-    public long timestamp { get; set; }
-    public Attachment[]? attachments { get; set; }
-    public string? source { get; set; }
-    public int sourceDevice { get; set; }
-    public long sent_at { get; set; }
-    public long received_at { get; set; }
-    public string? conversationId { get; set; }
-    public bool unidentifiedDeliveryReceived { get; set; }
-    public string? type { get; set; }
-    public int schemaVersion { get; set; }
-    public string? id { get; set; }
-    public string? body { get; set; }
-    public object[]? contact { get; set; }
-    public long decrypted_at { get; set; }
-    public object[]? errors { get; set; }
-    public int flags { get; set; }
-    public int hasAttachments { get; set; }
-    public int hasVisualMediaAttachments { get; set; }
-    public bool isViewOnce { get; set; }
-    public object[]? preview { get; set; }
-    public int requiredProtocolVersion { get; set; }
-    public int supportedVersionAtReceive { get; set; }
-    public object? quote { get; set; }
-    public object? sticker { get; set; }
-    public int readStatus { get; set; }
-    public int seenStatus { get; set; }
+    char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new[] { '?' }).ToArray();
+
+    if (attachment.path == null)
+    {
+        return null;
+    }
+
+    string fileName;
+    if (!string.IsNullOrEmpty(attachment.fileName)
+        && !attachment.fileName.Any(x => invalidFileNameChars.Any(z => x == z)))
+    {
+        fileName = attachment.fileName;
+    }
+    else
+    {
+        fileName = Path.GetFileName(attachment.path);
+    }
+
+    if (String.IsNullOrEmpty(Path.GetExtension(fileName)))
+    {
+        fileName += "." + MimeTypesMap.GetExtension(attachment.contentType);
+    }
+
+    return fileName;
 }
 
-public class Attachment
+static void Save(Attachment attachments, string signalDirectory, string exportLocation1, long receivedAt)
 {
-    public object? caption { get; set; }
-    public string? contentType { get; set; }
-    public string? fileName { get; set; }
-    public object? flags { get; set; }
-    public int? height { get; set; }
-    public string? id { get; set; }
-    public int size { get; set; }
-    public int? width { get; set; }
-    public string? path { get; set; }
-    public Thumbnail? thumbnail { get; set; }
+    string? fileName = GetFileName(attachments);
+    if (!string.IsNullOrEmpty(attachments.path) && fileName != null)
+    {
+        string currentFileLocation = Path.Combine(signalDirectory, "attachment.noindex", attachments.path);
+
+        string destFilepath = Path.Combine(exportLocation1, fileName);
+        if (Path.Exists(destFilepath))
+        {
+            destFilepath = Path.Combine(exportLocation1, Guid.NewGuid() + fileName);
+        }
+
+        DateTime when = new DateTime(1970, 1, 1).AddMilliseconds(receivedAt).ToLocalTime();
+
+
+        Console.WriteLine($"{fileName}: {currentFileLocation} @{when:yyyy-MM-dd} -> {destFilepath}");
+        File.Copy(currentFileLocation, destFilepath);
+        FileInfo fileInfo = new FileInfo(destFilepath)
+        {
+            LastWriteTime = when,
+            CreationTime = when
+        };
+    }
 }
 
-public class Thumbnail
+static void SaveMessage(Message message1, string signalDirectory, string exportLocation)
 {
-    public string? path { get; set; }
-    public string? contentType { get; set; }
-    public int? width { get; set; }
-    public int? height { get; set; }
-}
+    if (message1?.json == null)
+    {
+        return;
+    }
 
-
-class Message
-{
-    string? id { get; set; }
-    public string? json { get; set; }
-}
-
-public class SignalConfig
-{
-    [JsonPropertyName("key")] public string? Key { get; set; }
+    MessageContent? rootObject = JsonSerializer.Deserialize<MessageContent>(message1.json);
+    if (rootObject?.attachments?.Length > 0)
+    {
+        long receivedAt = rootObject.received_at;
+        foreach (Attachment attachment in rootObject.attachments)
+        {
+            Save(attachment, signalDirectory, exportLocation, receivedAt);
+        }
+    }
 }
