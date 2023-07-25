@@ -29,7 +29,8 @@
         </Grid.RowDefinitions>
         <TextBox Grid.Row="0" Grid.Column="0" Name="DestinationPath" VerticalAlignment="Center"
                  Text="{Binding Path=DestinationPath}" />
-        <Button Grid.Row="0"  Grid.Column="1" Content="Browse" Command="{Binding SelectFolderCommand}" HorizontalAlignment="Right" />
+        <Button Grid.Row="0"  Grid.Column="1" Content="Browse" Command="{Binding SelectFolderCommand}" 
+                CommandParameter="{Binding $parent[Window]}" HorizontalAlignment="Right" />
         <ProgressBar Height="20" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="{Binding TotalMessages}" Value="{Binding MessagesProcessed}"></ProgressBar>
         
         <Button Grid.Row="2"  Grid.Column="1" Content="Export" Command="{Binding ExportCommand}" HorizontalAlignment="Right" />

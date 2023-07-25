@@ -1,26 +1,47 @@
 ﻿using System;
-using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.IO;
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Platform.Storage;
 using ReactiveUI;
 
 namespace SignalMediaExporter.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
-    public string Greeting => "Welcome to Avalonia!";
-    public ReactiveCommand<Unit, string> SelectFolderCommand { get; }
-    public string DestinationPath { get; set; }
     public ReactiveCommand<Unit, Unit> ExportCommand { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
-    public int TotalMessages { get; }
-    public int MessagesProcessed { get; }
+    public ReactiveCommand<Window, string> SelectFolderCommand { get; }
+
+    private string _destinationPath;
+
+    public string DestinationPath
+    {
+        get => _destinationPath;
+        set => this.RaiseAndSetIfChanged(ref _destinationPath, value);
+    }
+
+    private int _totalMessages;
+
+    public int TotalMessages
+    {
+        get => _totalMessages;
+        set => this.RaiseAndSetIfChanged(ref _totalMessages, value);
+    }
+
+    private int _messagesProcessed;
+
+    public int MessagesProcessed
+    {
+        get => _messagesProcessed;
+        set => this.RaiseAndSetIfChanged(ref _messagesProcessed, value);
+    }
 
     public MainWindowViewModel()
     {
@@ -28,24 +49,27 @@ public class MainWindowViewModel : ViewModelBase
             () => Observable
                 .StartAsync(SearchDuplicate)
                 .TakeUntil(CancelCommand!));
-        ExportCommand.Subscribe(x =>
+        ExportCommand.Subscribe(x => { });
+        SelectFolderCommand = ReactiveCommand.CreateFromTask<Window, string>(async (Window window) =>
         {
-
-        });
-        SelectFolderCommand = ReactiveCommand.CreateFromTask(async () =>
-        {
-            OpenFolderDialog ofg = new()
-            {
-                Directory = DestinationPath
-            };
-
             Window mainWindow = (Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow
                                 ?? throw new InvalidCastException("MainWindow not found!");
-            string? selectedPath = await ofg.ShowAsync(mainWindow);
-
-            if (selectedPath != null && Directory.Exists(selectedPath))
+            FolderPickerOpenOptions folderPickerOptions = new()
             {
-                return selectedPath;
+                AllowMultiple = false,
+                Title = "Select a folder to add",
+                SuggestedStartLocation = await window.StorageProvider.TryGetFolderFromPathAsync(DestinationPath)
+            };
+            IReadOnlyList<IStorageFolder> folders = await window.StorageProvider.OpenFolderPickerAsync(folderPickerOptions);
+
+
+            if (folders.Count == 0)
+            {
+                string? tryGetLocalPath = folders[0].TryGetLocalPath();
+                if (tryGetLocalPath != null && Directory.Exists(tryGetLocalPath))
+                {
+                    return tryGetLocalPath;
+                }
             }
 
             return DestinationPath;
@@ -54,6 +78,11 @@ public class MainWindowViewModel : ViewModelBase
         CancelCommand = ReactiveCommand.Create(
             () => { },
             ExportCommand.IsExecuting);
+    }
+
+    private Task SelectFolderAsync(Window arg1, CancellationToken arg2)
+    {
+        throw new NotImplementedException();
     }
 
     private async Task SearchDuplicate(CancellationToken arg)
