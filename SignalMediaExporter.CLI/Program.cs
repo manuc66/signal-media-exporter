@@ -1,8 +1,9 @@
 using System.CommandLine;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using HeyRed.Mime;
 using manuc66.SignalMediaExporter.CLI.Models;
+using Microsoft.Extensions.Logging;
+using SignalMediaExporter.Core;
 using SQLite;
 
 namespace manuc66.SignalMediaExporter.CLI;
@@ -19,43 +20,48 @@ public static class Program
             Arity = ArgumentArity.ExactlyOne
         };
 
-        RootCommand rootCommand = new RootCommand("Export Signal message attachment to a directory");
+        RootCommand rootCommand = new("Export Signal message attachment to a directory");
         rootCommand.AddOption(destinationOption);
 
-        rootCommand.SetHandler((file) => { ExportAttachments(file!); },
-            destinationOption);
+        rootCommand.SetHandler((file, logger) => { ExportAttachments(logger, file!); },
+            destinationOption, new LoggerBinder());
 
         return await rootCommand.InvokeAsync(args);
     }
 
-    private static void ExportAttachments(DirectoryInfo exportLocation)
+    private static void ExportAttachments(ILogger logger, DirectoryInfo exportLocation)
     {
         string dbLocationPath = GetDbLocationPath();
 
         string signalDirectory = Path.GetDirectoryName(Path.GetDirectoryName(dbLocationPath)) ??
-                                 throw new Exception("Impossible to traverse file directory to find the location of the Signal config file");
+                                 throw new Exception("Impossible to traverse file directory to find the logger of the Signal config file");
 
         string signalConfigFilePath = GetSignalConfigFilePath(signalDirectory);
 
-        Console.WriteLine("Database location: " + dbLocationPath);
-        Console.WriteLine("Configuration location: " + signalDirectory);
+        logger.LogInformation("Database logger: " + dbLocationPath);
+        logger.LogInformation("Configuration logger: " + signalDirectory);
 
         string jsonData = File.ReadAllText(signalConfigFilePath);
 
         SignalConfig? data = JsonSerializer.Deserialize<SignalConfig>(jsonData);
 
-        Console.WriteLine("Key: " + data?.Key);
+        logger.LogInformation("Key: " + data?.Key);
 
-        using SQLiteConnection connection = OpenSignalDatabase(dbLocationPath, data?.Key ?? string.Empty);
+        using SQLiteConnection connection = DatabaseConnectionProvider.OpenSignalDatabase(dbLocationPath, data?.Key ?? string.Empty);
+        MessageRepository messageRepository = new(connection);
 
-        List<Message> messageWithAttachments = GetMessageWithAttachments(connection);
+        long messageWithAttachmentCount = messageRepository.GetMessageWithAttachmentCount();
+        logger.LogInformation($"Number of message with attachment to process: {messageWithAttachmentCount}");
 
+        List<Message> messageWithAttachments = messageRepository.GetMessageWithAttachments();
+
+        AttachmentExporter attachmentExporter = new();
         foreach (Message message in messageWithAttachments)
         {
-            SaveMessage(message, signalDirectory, exportLocation.FullName);
+            attachmentExporter.SaveMessageAttachments(logger, message, signalDirectory, exportLocation.FullName);
         }
 
-        Console.WriteLine("Total messages with attachment: " + messageWithAttachments.Count);
+        logger.LogInformation("Total messages with attachment: " + messageWithAttachments.Count);
     }
 
 
@@ -102,104 +108,7 @@ public static class Program
         return dbLocationPath;
     }
 
-    static SQLiteConnection OpenSignalDatabase(string databasePath, string passphrase)
-    {
-        SQLitePCL.Batteries_V2.Init();
-        byte[] key = Convert.FromHexString(passphrase);
-
-        SQLiteConnectionString sqLiteConnectionString = new(databasePath, SQLiteOpenFlags.ReadOnly, false, key: key);
-        SQLiteConnection connection = new(sqLiteConnectionString);
-
-        return connection;
-    }
-
-    static string? GetFileName(Attachment attachment)
-    {
-        char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new[] { '?' }).ToArray();
-
-        if (attachment.path == null)
-        {
-            return null;
-        }
-
-        string fileName;
-        if (!string.IsNullOrEmpty(attachment.fileName)
-            && !attachment.fileName.Any(x => invalidFileNameChars.Any(z => x == z)))
-        {
-            fileName = attachment.fileName;
-        }
-        else
-        {
-            fileName = Path.GetFileName(attachment.path);
-        }
-
-        if (String.IsNullOrEmpty(Path.GetExtension(fileName)))
-        {
-            fileName += "." + MimeTypesMap.GetExtension(attachment.contentType);
-        }
-
-        return fileName;
-    }
-
-    static bool Save(Attachment attachments, string signalDirectory, string exportLocation, long receivedAt)
-    {
-        string? fileName = GetFileName(attachments);
-        if (string.IsNullOrEmpty(attachments.path) || fileName == null)
-        {
-            return false;
-        }
-
-        string currentFileLocation = Path.Combine(signalDirectory, "attachments.noindex", attachments.path);
-
-        string destFilepath = Path.Combine(exportLocation, fileName);
-        if (Path.Exists(destFilepath))
-        {
-            destFilepath = Path.Combine(exportLocation, Guid.NewGuid() + fileName);
-        }
-
-        DateTime when = new DateTime(1970, 1, 1).AddMilliseconds(receivedAt).ToLocalTime();
 
 
-        Console.WriteLine($"{fileName}: {currentFileLocation} @{when:yyyy-MM-dd} -> {destFilepath}");
-        File.Copy(currentFileLocation, destFilepath);
-        FileInfo fileInfo = new(destFilepath)
-        {
-            LastWriteTime = when,
-            CreationTime = when
-        };
-        fileInfo.LastWriteTime = when;
-        return true;
-    }
 
-    static bool SaveMessage(Message message, string signalDirectory, string exportLocation)
-    {
-        if (message.json == null)
-        {
-            return false;
-        }
-
-        MessageContent? rootObject = JsonSerializer.Deserialize<MessageContent>(message.json);
-        if (!(rootObject?.attachments?.Length > 0))
-        {
-            return false;
-        }
-
-        long receivedAt = rootObject.received_at;
-
-        bool saved = false;
-        foreach (Attachment attachment in rootObject.attachments)
-        {
-            saved |= Save(attachment, signalDirectory, exportLocation, receivedAt);
-        }
-
-        return saved;
-
-    }
-
-    static List<Message> GetMessageWithAttachments(SQLiteConnection sqLiteConnection)
-    {
-        SQLiteCommand sqLiteCommand = sqLiteConnection.CreateCommand("select id, json from messages where hasAttachments=1");
-        List<Message> messages = sqLiteCommand.ExecuteQuery<Message>();
-        return messages;
-    }
 }

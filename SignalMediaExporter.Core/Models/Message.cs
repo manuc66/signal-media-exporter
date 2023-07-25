@@ -1,6 +1,6 @@
 namespace manuc66.SignalMediaExporter.CLI.Models;
 
-class Message
+public class Message
 {
     string? id { get; set; }
     public string? json { get; set; }
