@@ -19,7 +19,7 @@ public class MainWindowViewModel : ViewModelBase
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
     public ReactiveCommand<Window, string> SelectFolderCommand { get; }
 
-    private string _destinationPath;
+    private string _destinationPath = string.Empty;
 
     public string DestinationPath
     {
@@ -52,8 +52,6 @@ public class MainWindowViewModel : ViewModelBase
         ExportCommand.Subscribe(x => { });
         SelectFolderCommand = ReactiveCommand.CreateFromTask<Window, string>(async (Window window) =>
         {
-            Window mainWindow = (Avalonia.Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow
-                                ?? throw new InvalidCastException("MainWindow not found!");
             FolderPickerOpenOptions folderPickerOptions = new()
             {
                 AllowMultiple = false,
@@ -62,14 +60,15 @@ public class MainWindowViewModel : ViewModelBase
             };
             IReadOnlyList<IStorageFolder> folders = await window.StorageProvider.OpenFolderPickerAsync(folderPickerOptions);
 
-
             if (folders.Count == 0)
             {
-                string? tryGetLocalPath = folders[0].TryGetLocalPath();
-                if (tryGetLocalPath != null && Directory.Exists(tryGetLocalPath))
-                {
-                    return tryGetLocalPath;
-                }
+                return DestinationPath;
+            }
+
+            string? tryGetLocalPath = folders[0].TryGetLocalPath();
+            if (tryGetLocalPath != null && Directory.Exists(tryGetLocalPath))
+            {
+                return tryGetLocalPath;
             }
 
             return DestinationPath;
@@ -80,10 +79,6 @@ public class MainWindowViewModel : ViewModelBase
             ExportCommand.IsExecuting);
     }
 
-    private Task SelectFolderAsync(Window arg1, CancellationToken arg2)
-    {
-        throw new NotImplementedException();
-    }
 
     private async Task SearchDuplicate(CancellationToken arg)
     {
