@@ -55,7 +55,7 @@ public class MainWindowViewModel : ViewModelBase
             FolderPickerOpenOptions folderPickerOptions = new()
             {
                 AllowMultiple = false,
-                Title = "Select a folder to add",
+                Title = "Select an export folder",
                 SuggestedStartLocation = await window.StorageProvider.TryGetFolderFromPathAsync(DestinationPath)
             };
             IReadOnlyList<IStorageFolder> folders = await window.StorageProvider.OpenFolderPickerAsync(folderPickerOptions);
