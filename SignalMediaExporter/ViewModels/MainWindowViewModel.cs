@@ -7,13 +7,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
-using manuc66.SignalMediaExporter.CLI;
-using manuc66.SignalMediaExporter.CLI.Models;
+using manuc66.SignalMediaExporter.Core;
+using manuc66.SignalMediaExporter.Core.Models;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
-using SignalMediaExporter.Core;
 
-namespace SignalMediaExporter.ViewModels;
+namespace manuc66.SignalMediaExporter.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
@@ -60,7 +59,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             (string signalDirectory ,string dbLocationPath)  = SignalDbLocator.GetDbLocationDetails();
             
-            MessageRepository messageRepository = MessageRepository.CreateMessageRepository(logger, signalDirectory, dbLocationPath);
+            using MessageRepository messageRepository = MessageRepository.CreateMessageRepository(logger, signalDirectory, dbLocationPath);
 
             long messageWithAttachmentCount = messageRepository.GetMessageWithAttachmentCount();
             
@@ -76,7 +75,7 @@ public class MainWindowViewModel : ViewModelBase
 
             _logger.LogInformation("Total messages with attachment: " + messageWithAttachments.Count);
         });
-        SelectFolderCommand = ReactiveCommand.CreateFromTask<Window, string>(async (Window window) =>
+        SelectFolderCommand = ReactiveCommand.CreateFromTask(async (Window window) =>
         {
             FolderPickerOpenOptions folderPickerOptions = new()
             {

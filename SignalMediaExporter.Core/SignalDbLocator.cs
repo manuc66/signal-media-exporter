@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace manuc66.SignalMediaExporter.CLI;
+namespace manuc66.SignalMediaExporter.Core;
 
 public static class SignalDbLocator
 {

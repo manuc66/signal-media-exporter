@@ -1,6 +1,6 @@
 ﻿using ReactiveUI;
 
-namespace SignalMediaExporter.ViewModels;
+namespace manuc66.SignalMediaExporter.ViewModels;
 
 public class ViewModelBase : ReactiveObject
 {

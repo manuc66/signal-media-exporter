@@ -1,12 +1,12 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:SignalMediaExporter.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:viewModels="clr-namespace:manuc66.SignalMediaExporter.ViewModels"
         mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="100"
         Width="600" Height="85"
-        x:Class="SignalMediaExporter.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
+        x:Class="manuc66.SignalMediaExporter.Views.MainWindow"
+        x:DataType="viewModels:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="SignalMediaExporter"
         CanResize="False">
@@ -14,7 +14,7 @@
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainWindowViewModel />
+        <viewModels:MainWindowViewModel />
     </Design.DataContext>
 
     <Grid>

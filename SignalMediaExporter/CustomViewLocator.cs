@@ -1,9 +1,9 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using SignalMediaExporter.ViewModels;
+using manuc66.SignalMediaExporter.ViewModels;
 
-namespace SignalMediaExporter;
+namespace manuc66.SignalMediaExporter;
 
 public class CustomViewLocator : IDataTemplate
 {

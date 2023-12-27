@@ -1,8 +1,8 @@
 using SQLite;
 
-namespace SignalMediaExporter.Core;
+namespace manuc66.SignalMediaExporter.Core;
 
-public class DatabaseConnectionProvider
+public static class DatabaseConnectionProvider
 {
     public static SQLiteConnection OpenSignalDatabase(string databasePath, string passphrase)
     {

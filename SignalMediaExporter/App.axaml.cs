@@ -1,18 +1,13 @@
 using System;
-using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Platform.Storage;
-using Avalonia.Threading;
+using manuc66.SignalMediaExporter.ViewModels;
+using manuc66.SignalMediaExporter.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using SignalMediaExporter.ViewModels;
-using SignalMediaExporter.Views;
-using Splat;
-using IViewLocator = ReactiveUI.IViewLocator;
 
-namespace SignalMediaExporter;
+namespace manuc66.SignalMediaExporter;
 
 public partial class App : Application
 {

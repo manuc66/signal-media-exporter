@@ -1,6 +1,6 @@
 using Avalonia.Controls;
 
-namespace SignalMediaExporter.Views;
+namespace manuc66.SignalMediaExporter.Views;
 
 public partial class MainWindow : Window
 {

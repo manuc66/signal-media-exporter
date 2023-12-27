@@ -1,28 +1,22 @@
 ﻿using System.Text.Json;
-using manuc66.SignalMediaExporter.CLI.Models;
+using manuc66.SignalMediaExporter.Core.Models;
 using Microsoft.Extensions.Logging;
 using SQLite;
 
-namespace SignalMediaExporter.Core;
+namespace manuc66.SignalMediaExporter.Core;
 
-public class MessageRepository
+public class MessageRepository(SQLiteConnection sqLiteConnection) : IDisposable
 {
-    private readonly SQLiteConnection _sqLiteConnection;
-    public MessageRepository(SQLiteConnection sqLiteConnection)
-    {
-        _sqLiteConnection = sqLiteConnection;
-    }
-
     public long GetMessageWithAttachmentCount()
     {
-        SQLiteCommand sqLiteCommand = _sqLiteConnection.CreateCommand("select count(id) from messages where hasAttachments=1 order by id");
+        SQLiteCommand sqLiteCommand = sqLiteConnection.CreateCommand("select count(id) from messages where hasAttachments=1 order by id");
         return sqLiteCommand.ExecuteScalar<long>();
     }
 
 
     public List<Message> GetMessageWithAttachments()
     {
-        SQLiteCommand sqLiteCommand = _sqLiteConnection.CreateCommand("select id, json from messages where hasAttachments=1 order by id");
+        SQLiteCommand sqLiteCommand = sqLiteConnection.CreateCommand("select id, json from messages where hasAttachments=1 order by id");
         List<Message> messages = sqLiteCommand.ExecuteQuery<Message>();
         return messages;
     }
@@ -40,7 +34,7 @@ public class MessageRepository
 
         logger.LogInformation("Key: " + data?.Key);
 
-        using SQLiteConnection connection = DatabaseConnectionProvider.OpenSignalDatabase(dbLocationPath, data?.Key ?? string.Empty);
+        SQLiteConnection connection = DatabaseConnectionProvider.OpenSignalDatabase(dbLocationPath, data?.Key ?? string.Empty);
         
         MessageRepository messageRepository = new(connection);
         return messageRepository;
@@ -55,5 +49,10 @@ public class MessageRepository
         }
 
         return signalConfigFilePath;
+    }
+
+    public void Dispose()
+    {
+        sqLiteConnection.Dispose();
     }
 }

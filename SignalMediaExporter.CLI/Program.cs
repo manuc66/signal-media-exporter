@@ -1,15 +1,15 @@
 using System.CommandLine;
 using System.Text.Json;
-using manuc66.SignalMediaExporter.CLI.Models;
+using manuc66.SignalMediaExporter.Core;
+using manuc66.SignalMediaExporter.Core.Models;
 using Microsoft.Extensions.Logging;
-using SignalMediaExporter.Core;
 using SQLite;
 
 namespace manuc66.SignalMediaExporter.CLI;
 
 public static class Program
 {
-    static async Task<int> Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         Option<DirectoryInfo?> destinationOption = new(
             name: "--destination",
@@ -33,7 +33,7 @@ public static class Program
         (string signalDirectory ,string dbLocationPath)  = SignalDbLocator.GetDbLocationDetails();
     
 
-        MessageRepository messageRepository = MessageRepository.CreateMessageRepository(logger, signalDirectory, dbLocationPath);
+        using MessageRepository messageRepository = MessageRepository.CreateMessageRepository(logger, signalDirectory, dbLocationPath);
 
         long messageWithAttachmentCount = messageRepository.GetMessageWithAttachmentCount();
         logger.LogInformation($"Number of message with attachment to process: {messageWithAttachmentCount}");
@@ -48,9 +48,4 @@ public static class Program
 
         logger.LogInformation("Total messages with attachment: " + messageWithAttachments.Count);
     }
-
-
-
-
-
 }

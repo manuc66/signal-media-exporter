@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace manuc66.SignalMediaExporter.CLI.Models;
+namespace manuc66.SignalMediaExporter.Core.Models;
 
 public class SignalConfig
 {

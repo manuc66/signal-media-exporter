@@ -1,13 +1,13 @@
 using System.Text.Json;
 using HeyRed.Mime;
-using manuc66.SignalMediaExporter.CLI.Models;
+using manuc66.SignalMediaExporter.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace SignalMediaExporter.Core;
+namespace manuc66.SignalMediaExporter.Core;
 
 public class AttachmentExporter
 {
-    static string? GetFileName(Attachment attachment)
+    private static string? GetFileName(Attachment attachment)
     {
         char[] invalidFileNameChars = Path.GetInvalidPathChars().Union(new[] { '?' }).ToArray();
 
@@ -35,7 +35,7 @@ public class AttachmentExporter
         return fileName;
     }
 
-    static bool Save(ILogger logger, Attachment attachments, string signalDirectory, string exportLocation, long receivedAt)
+    private static bool Save(ILogger logger, Attachment attachments, string signalDirectory, string exportLocation, long receivedAt)
     {
         string? fileName = GetFileName(attachments);
         if (string.IsNullOrEmpty(attachments.path) || fileName == null)
