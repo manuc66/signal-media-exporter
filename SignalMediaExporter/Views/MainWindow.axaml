@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="300" d:DesignHeight="100"
-        Width="300" Height="100"
+        Width="600" Height="85"
         x:Class="SignalMediaExporter.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
@@ -27,8 +27,11 @@
             <RowDefinition Height="Auto"></RowDefinition>
             <RowDefinition Height="Auto"></RowDefinition>
         </Grid.RowDefinitions>
-        <TextBox Grid.Row="0" Grid.Column="0" Name="DestinationPath" VerticalAlignment="Center"
-                 Text="{Binding Path=DestinationPath}" />
+        <DockPanel Grid.Row="0" Grid.Column="0"  >
+            <TextBlock DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0, 4, 0">Destination folder:</TextBlock>
+            <TextBox  DockPanel.Dock="Right" Name="DestinationPath" VerticalAlignment="Center" 
+                      Text="{Binding Path=DestinationPath}" />
+        </DockPanel>
         <Button Grid.Row="0"  Grid.Column="1" Content="Browse" Command="{Binding SelectFolderCommand}" 
                 CommandParameter="{Binding $parent[Window]}" HorizontalAlignment="Right" />
         <ProgressBar Height="20" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="{Binding TotalMessages}" Value="{Binding MessagesProcessed}"></ProgressBar>
