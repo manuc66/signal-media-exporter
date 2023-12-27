@@ -11,7 +11,7 @@ public class DatabaseConnectionProvider
 
         SQLiteConnectionString sqLiteConnectionString = new(databasePath, SQLiteOpenFlags.ReadOnly, false, key: key);
         SQLiteConnection connection = new(sqLiteConnectionString);
-
+        connection.Trace = true;
         return connection;
     }
 }

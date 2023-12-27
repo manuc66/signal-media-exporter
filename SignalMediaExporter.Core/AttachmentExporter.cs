@@ -46,7 +46,7 @@ public class AttachmentExporter
         string currentFileLocation = Path.Combine(signalDirectory, "attachments.noindex", attachments.path);
 
         string destFilepath = Path.Combine(exportLocation, fileName);
-        if (Path.Exists(destFilepath))
+        if (File.Exists(destFilepath))
         {
             destFilepath = Path.Combine(exportLocation, Guid.NewGuid() + fileName);
         }
